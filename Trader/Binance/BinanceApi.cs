@@ -23,7 +23,7 @@ public class BinanceApi
         _apiKey = config["BinanceApiKey"];
         _apiSecret = config["BinanceApiSecret"];
     }
-    
+
     public async Task<decimal?> GetUsdtBalance()
     {
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -134,7 +134,7 @@ public class BinanceApi
             Console.WriteLine($"❌ Erro ao executar ordem de compra: {ex.Message}");
         }
     }
-
+    
     public async Task PlaceMarketSellOrder(decimal quantity, decimal stepSize, decimal minQty)
     {
         var rawQty = Math.Floor(quantity / stepSize) * stepSize;
@@ -163,6 +163,49 @@ public class BinanceApi
         {
             Console.WriteLine($"❌ Erro ao executar ordem de venda: {ex.Message}");
         }
+    }
+    
+    public async void ExecuteOrder(string side, decimal price)
+    {
+        try
+        {
+            using var httpClient = new HttpClient();
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var queryString = $"symbol=BTCUSDT&side={side}&type=MARKET&quantity=0.001&recvWindow=5000&&timestamp={timestamp}";
+            var secret = _apiSecret;
+            var apiKey = _apiKey;
+
+            var signature = CreateHmacSignature(queryString, secret);
+            var finalUrl = $"https://api.binance.com/api/v3/order?{queryString}&signature={signature}";
+
+            var request = new HttpRequestMessage(HttpMethod.Post, finalUrl);
+            request.Headers.Add("X-MBX-APIKEY", apiKey);
+
+            var response = await httpClient.SendAsync(request);
+            var result = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"[ORDEM ENVIADA] {side}: {result}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao executar ordem: {ex.Message}");
+        }
+    }
+    
+    public async Task<long> GetServerTime()
+    {
+        using var client = new HttpClient();
+        var response = await client.GetStringAsync("https://api.binance.com/api/v3/time");
+        var json = JsonSerializer.Deserialize<JsonElement>(response);
+        return json.GetProperty("serverTime").GetInt64();
+    }
+    
+    private static string CreateHmacSignature(string data, string? secret)
+    {
+        var keyBytes = System.Text.Encoding.UTF8.GetBytes(secret);
+        var dataBytes = System.Text.Encoding.UTF8.GetBytes(data);
+        using var hmac = new System.Security.Cryptography.HMACSHA256(keyBytes);
+        var hash = hmac.ComputeHash(dataBytes);
+        return BitConverter.ToString(hash).Replace("-", "").ToLower();
     }
 
     private string Sign(string message, string secret)

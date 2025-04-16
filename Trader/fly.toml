@@ -1,0 +1,18 @@
+# fly.toml app configuration file generated for trader-valiengo on 2025-04-15T22:29:44-03:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'trader-valiengo'
+
+[build]
+dockerfile = "Dockerfile"
+
+[env]
+NODE_ENV = "production"
+
+[deploy]
+primary_region = "cdg"
+
+[regions]
+backup_regions = ["gru"]
